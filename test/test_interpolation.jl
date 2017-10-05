@@ -1,3 +1,5 @@
+workspace()
+
 include("../src/interpolation.jl")
 include("./unit_test.jl")
 
@@ -75,4 +77,75 @@ end
 # plot(domain, map(f_pol9, domain), label="9th degree")
 # stem(x, y, label="Points")
 # legend()
+# println("Passed...\n")
+
+
+println("Test: spline_interpolate...")
+x = [i for i = 1 : 5]
+y = 2x + 5
+# Perform linear interpolation.
+f_lin = spline_interpolate(x, y, spline_type="linear")
+# Check if f_lin passes through the interpolation data
+for i = 1 : length(x)
+    expected = y[i]
+    calculated = f_lin(x[i])
+    almost_equal(expected, calculated) ? pass() : fail("Expected $expected, got $calculated instead.")
+end
+# Perform quadratic interpolation
+y = 1 + 2 * x + 3 * x.^2
+f_quad = spline_interpolate(x, y, spline_type="quadratic")
+# Check if f_quad passes through the interpolation data
+for i = 1 : length(x)
+    expected = y[i]
+    calculated = f_quad(x[i])
+    almost_equal(expected, calculated) ? pass() : fail("Expected $expected, got $calculated instead.")
+end
+# Perform qubic interpolation
+y = 1 + 2 * x + 3 * x.^3 + 4 * x.^3
+f_cubic = spline_interpolate(x, y, spline_type="cubic")
+# Check if f_quad passes through the interpolation data
+for i = 1 : length(x)
+    expected = y[i]
+    calculated = f_cubic(x[i])
+    almost_equal(expected, calculated) ? pass() : fail("Expected $expected, got $calculated instead.")
+end
+
+# using PyPlot
+# println("Test: spline_interpolate...")
+# x = [i for i = 1 : 100]
+# y = 1 + 2 * x + 3 * x.^3
+# f = spline_interpolate(x, y, spline_type="quadratic")
+# plot(x, y, ".")
+# plot(x, map(f, x))
+# println("Passed...\n")
+
+# using PyPlot
+# println("Test: spline_interpolate...")
+# x = [i for i in  linspace(-4, 4, 100)]
+# y = 1 ./ (1 + x.^2) .* sin.(x)
+# f = spline_interpolate(x, y, spline_type="cubic")
+# plot(x, y, ".", label="Points")
+# plot(x, map(f, x), label="Cubic Interpolation")
+# legend()
+# xlabel("x")
+# ylabel("y")
+# println("Passed...\n")
+
+# Animated plot
+using PyPlot
+println("Test: spline_interpolate...")
+x = [i for i in  linspace(-4, 4, 100)]
+y = 1 ./ (1 + x.^2) .* sin.(x)
+f = spline_interpolate(x, y, spline_type="cubic")
+
+fig = figure()
+ax = fig[:add_subplot](111)
+ax[:plot](x, y, ".")
+curve, = ax[:plot]([], [])
+for xi in x
+    curve[:set_xdata](xi)
+    curve[:set_ydata](f(xi))
+    fig[:canvas][:draw]()
+    fig[:canvas][:flush_events]()
+end
 println("Passed...\n")

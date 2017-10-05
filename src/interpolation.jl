@@ -47,7 +47,7 @@ module Interpolation
 
 using Main: unit_pulse, shift
 
-export polynomial_interpolate
+export polynomial_interpolate, spline_interpolate
 
 
 """
@@ -155,5 +155,127 @@ function polynomial_interpolate(x::Array{<:Real, 1},
     end  # End of if-elseif-else.
 
 end  # End of polynomial_interpolate function
+
+
+"""
+    spline_interpolate(x::Vector{<:Real}, y::Vector{<:Real}; spline_type::String="linear")
+
+Spline interpolation of real vectors `x` and `y`.
+
+Interpolation is performed by fitting of polynomial between each pairs of
+`x[i] : x[i +1]`. `spline_type` determines the degree of the polynomial.
+Possible values for `spline_type` is
+
+    * `linear` : A linear polynomial `p(x) = a + bx` is interpolated.
+    * `quadratic` : A quadratic polynomial `p(x) = a + bx + x^2` is interpolated.
+    * `qubic` : A qubic polynomial `p(x) = a + bx + cx^2 + dx^3` is interpolated.
+"""
+function spline_interpolate(x::Vector{<:Real}, y::Vector{<:Real}; spline_type::String="linear")
+    # Check the data length
+    if ~(length(x) == length(y))
+        throw(ArgumentError("Vector lengths does not match"))
+    end
+
+    # If the interpolation points are mixed, sort them.
+    xy = sortrows([x y])
+    x, y = xy[:, 1], xy[:, 2]
+
+    # Define the mask function.
+    # The mask function is used for boolean indexing of splines.
+    function mask(t)
+        ind = Vector{Bool}(n)
+        for k = 1 : n
+            ind[k] = Bool(unit_pulse(t, tl=x[k], th=x[k + 1]))
+        end
+        return ind
+    end
+
+    if spline_type == "linear"
+        # Compute spline coefficients
+        n = length(x) - 1
+        delta_x = diff(x)
+        delta_y = diff(y)
+        b = \(diagm(delta_x), delta_y)
+        a = y[2:end] - b .* x[2:end]
+
+        # Construct splines
+        splines = Vector{Function}(n)
+        for k = 1 : n
+            splines[k] = t -> a[k] + b[k] * t
+        end
+
+    elseif spline_type == "quadratic"
+        # 1st derivative vector z at interpolation points x
+        n = length(x) - 1
+        mat = full(Tridiagonal(ones(n), ones(n + 1), zeros(n)))
+        d = vcat([0], 2 * diff(y) ./ diff(x))
+        println("mat: $mat d: $d")
+        z = \(mat, d)
+
+        # Compute the spline coefficients
+        delta_x = diff(x)
+        delta_y = diff(y)
+        delta_z = diff(z)
+        x_bar = x[1 : end - 1]
+        y_bar = y[1 : end - 1]
+        z_bar = z[1 : end - 1]
+        a = -z_bar .* x_bar + (delta_z ./ (2 * delta_x)) .* (x_bar.^2) + y_bar
+        b = z_bar - (delta_z ./ delta_x) .* x_bar
+        c = delta_z ./ (2 * delta_x)
+
+        # Construct splines
+        splines = Vector{Function}(n)
+        for k = 1 : n
+            splines[k] = t -> a[k] + b[k] * t + c[k] * t^2
+        end
+
+    elseif spline_type == "cubic"
+        # 2nd derivative vector z at interpolation points x
+        n = length(x) - 1
+        delta_x = diff(x)
+        delta_y = diff(y)
+        di = 2 * ([delta_x[1]; delta_x] + [0; delta_x[2 : end]; 0])
+        mat = full(Tridiagonal(delta_x, di, delta_x))
+        d = 6 * [delta_y[1] / delta_x[1];
+                delta_y[2 : end] ./ delta_x[2 : end] - delta_y[1 : end - 1] ./ delta_x[1 : end - 1];
+                -delta_y[end] / delta_x[end]]
+        z = \(mat, d)
+
+        # Compute spline coefficients
+        x_bar = x[1 : end - 1]
+        y_bar = y[1 : end - 1]
+        z_bar = z[1 : end - 1]
+        x_tilde = x[2 : end]
+        y_tilde = y[2 : end]
+        z_tilde = z[2 : end]
+        k1 = z_bar ./ (6 * delta_x)
+        k2 = z_tilde ./ (6 * delta_x)
+        k3 = (y_tilde ./ delta_x) - (z_tilde .* delta_x / 6)
+        k4 = (y_bar ./ delta_x) - (z_bar .* delta_x / 6)
+        a = k1 .* (x_tilde.^3) - k2 .* (x_bar.^3) - k3 .* x_bar + k4 .* x_tilde
+        b = -3 * k1 .* (x_tilde.^2) + 3 * k2 .* (x_bar.^2) + k3 - k4
+        c = 3 * k1 .* x_tilde - 3 * k2 .* x_bar
+        d = -k1 + k2
+
+        # Construct splines
+        splines = Vector{Function}(n)
+        for k = 0 : n - 1
+            splines[k + 1] = t -> a[k + 1] + b[k + 1] * t + c[k + 1] * t^2 + d[k + 1] * t^3
+        end
+    end  # End of if-elseif-else.
+
+    # Constuct the interpolation polynomial i.e. splines.
+    function func(t)
+        if t < x[1] || t > x[end]
+            throw(DomainError("$t is out of interpolation domain $(x[1]), $(x[end])"))
+        elseif t == x[end]
+            return y[end]
+        else
+            return splines[mask(t)][1](t)
+        end  # End of if-elseif-else
+    end  # End of func function.
+
+    return func
+end  # End of spline_interpolate function.
 
 end  # End of the Interpolation module
