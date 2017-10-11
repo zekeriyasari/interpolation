@@ -1,13 +1,13 @@
+workspace()
+include("../src/interpolation.jl")
+using Interpolation
 
-function shift(vec, k)
-temp = vec[1 : end - k]
-vec[1 : k] = 0
-vec[1 + k : end] = temp
-end
+x = collect(linspace(0, 1, 11))
+y = x.^2
+d = 0.5 * ones(length(x) - 1)
+func0(t) = (y[end] - y[1]) / (x[end] - x[1]) * (t - x[end]) + y[end]
+res = fractal_interpolate(x, y, d, func0, num_iter=5)
 
-a = [1; 1; [0 for j = 1 : 8]]
-
-for k = 1 : 2
-    a = shift(a, 1)
-    println(a)
-end
+using PyPlot
+plot(x, map(res, x))
+plot(x, y, ".")

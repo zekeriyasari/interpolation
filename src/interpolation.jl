@@ -45,9 +45,9 @@ Interpolation module for polynomial interpolation real valued data.
 """
 module Interpolation
 
-using Main: unit_pulse, shift
+using Main: unit_pulse, shift, unit_step
 
-export polynomial_interpolate, spline_interpolate
+export polynomial_interpolate, spline_interpolate, fractal_interpolate
 
 
 """
@@ -277,5 +277,75 @@ function spline_interpolate(x::Vector{<:Real}, y::Vector{<:Real}; spline_type::S
 
     return func
 end  # End of spline_interpolate function.
+
+
+"""
+function fractal_interpolate(x::Vector{<:Real},
+                             y::Vector{<:Real},
+                             d::Vector{<:Real},
+                             func0::Function;
+                             num_iter::Integer=10)
+
+Fractal interpolation of real points `x` and `y`. `d` determines the traslation
+and has to have elements between 0 and 1. `func0` is the initial function to
+interpolate. `num_iter` is the number of iterations to have calculate the
+fractal interpolation function.
+"""
+function fractal_interpolate(x::Vector{<:Real},
+                             y::Vector{<:Real},
+                             d::Vector{<:Real},
+                             func0::Function;
+                             num_iter::Integer=10)
+    # Check the data length.
+    if length(x) != length(y)
+        throw(ArgumentError("Vector lengths does not match"))
+    end
+
+    # Check translation vector d.
+    if any((0 .> d) | (d .> 1))
+        error("Elements of d must be between 0 and 1.")
+    end
+
+    # If the interpolation points are mixed, sort them.
+    xy = sortrows([x y])
+    x, y = xy[:, 1], xy[:, 2]
+
+    # Compute the transformation coefficients
+    n = length(x) - 1
+    delta_x = diff(x)
+    delta_y = diff(y)
+    a = delta_x / (x[end] - x[1])
+    c = delta_y / (x[end] - x[1]) - d * (y[end] - y[1]) / (x[end] - x[1])
+    e = x[end] / (x[end] - x[1]) * x[1 : end - 1] - x[1] / (x[end] - x[1]) * x[2 : end]
+    f = x[end] / (x[end] - x[1]) * y[1 : end - 1] - x[1] / (x[end] - x[1]) * y[2 : end] -
+        d * (x[end] * y[1] - x[1] * y[end]) / (x[end] - x[1])
+
+    # Define functional transformation.
+    function tf(func)
+        function ff(t)
+            if t < x[1] && t > x[end]
+                error("t is out of interpolation domain.")
+            elseif t == x[end]
+                return y[end]
+            else
+                return sum([(c[k] * ((t - e[k]) / a[k]) + d[k] * func((t - e[k]) / a[k]) + f[k]) * (unit_step(t - x[k]) - unit_step(t - x[k + 1]))
+                            for k = 1 : n])
+            end  # if-elseif-else
+        end  # ff
+        return ff
+    end  # tf
+
+    # TODO: Given a tolerance value ε, calculate num_iter using the contraction
+    # mappping `tf`. Calculate the iteration at which the succesive distance
+    # between the graphs of iterated functions is closer than ε. For this
+    # purpose, use random iteration of IFS.
+
+    # Iterate the initial function.
+    func = func0
+    for i = 1 : num_iter
+        func = tf(func)
+    end
+    return func
+end  # fractal_interpolate
 
 end  # End of the Interpolation module
