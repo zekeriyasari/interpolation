@@ -66,18 +66,6 @@ for k = 1 : length(x)
     calculated = f_pol2(x[k])
     almost_equal(expected, calculated, tol=1e-3) ? pass() : fail("Expected $expected, got $calculated")
 end
-# # Plotting the results
-# using PyPlot
-# f_pol1 = polynomial_interpolate(x, y, deg=1)
-# f_pol2 = polynomial_interpolate(x, y, deg=2)
-# f_pol9 = polynomial_interpolate(x, y, deg=9)
-# domain = linspace(1, 10, 100)
-# plot(domain, map(f_pol1, domain), label="1st degree")
-# plot(domain, map(f_pol2, domain), label="2nd degree")
-# plot(domain, map(f_pol9, domain), label="9th degree")
-# stem(x, y, label="Points")
-# legend()
-# println("Passed...\n")
 
 
 println("Test: spline_interpolate...")
@@ -109,63 +97,3 @@ for i = 1 : length(x)
     calculated = f_cubic(x[i])
     almost_equal(expected, calculated) ? pass() : fail("Expected $expected, got $calculated instead.")
 end
-
-# using PyPlot
-# println("Test: spline_interpolate...")
-# x = [i for i = 1 : 100]
-# y = 1 + 2 * x + 3 * x.^3
-# f = spline_interpolate(x, y, spline_type="quadratic")
-# plot(x, y, ".")
-# plot(x, map(f, x))
-# println("Passed...\n")
-
-# using PyPlot
-# println("Test: spline_interpolate...")
-# x = [i for i in  linspace(-4, 4, 100)]
-# y = 1 ./ (1 + x.^2) .* sin.(x)
-# f = spline_interpolate(x, y, spline_type="cubic")
-# plot(x, y, ".", label="Points")
-# plot(x, map(f, x), label="Cubic Interpolation")
-# legend()
-# xlabel("x")
-# ylabel("y")
-# println("Passed...\n")
-
-# Animated plot
-using PyPlot
-println("Test: spline_interpolate...")
-x = [i for i in  linspace(-4, 4, 100)]
-y = 1 ./ (1 + x.^2) .* sin.(x)
-f = spline_interpolate(x, y, spline_type="cubic")
-
-fig = figure()
-ax = fig[:add_subplot](111)
-ax[:plot](x, y, ".", label="Interpolation Data")
-ax[:set_xlabel]("x")
-ax[:set_ylabel]("y")
-x_data = []
-y_data = []
-curve, = ax[:plot]([], [], label="Cubic Spline Interpolation")
-ax[:legend]()
-ax[:set_title]("Cubic spline interplation to f(x) = 1 / (1 + x^2) sin(x)")
-for xi in x
-    x_data = [x_data; xi]
-    y_data = [y_data; f(xi)]
-    curve[:set_xdata](x_data)
-    curve[:set_ydata](y_data)
-    fig[:canvas][:flush_events]()
-    ax[:relim]()
-    sleep(0.25)
-end
-println("Passed...\n")
-
-# Test fractal_interpolate
-# x = collect(linspace(0, 1, 11))
-# y = x.^2
-# d = 0.5 * ones(length(x) - 1)
-# func0(t) = (y[end] - y[1]) / (x[end] - x[1]) * (t - x[end]) + y[end]
-# res = fractal_interpolate(x, y, d, func0, num_iter=5)
-#
-# using PyPlot
-# plot(x, map(res, x))
-# plot(x, y, ".")

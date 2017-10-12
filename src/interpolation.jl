@@ -295,6 +295,7 @@ function fractal_interpolate(x::Vector{<:Real},
                              y::Vector{<:Real},
                              d::Vector{<:Real},
                              func0::Function;
+                             tol::AbstractFloat=1e-3,
                              num_iter::Integer=10)
     # Check the data length.
     if length(x) != length(y)
@@ -335,10 +336,11 @@ function fractal_interpolate(x::Vector{<:Real},
         return ff
     end  # tf
 
-    # TODO: Given a tolerance value ε, calculate num_iter using the contraction
-    # mappping `tf`. Calculate the iteration at which the succesive distance
-    # between the graphs of iterated functions is closer than ε. For this
-    # purpose, use random iteration of IFS.
+    # Calculate number of iterations
+    sigma = maximum(d)
+    func1 = tf(func0)
+    dist = maximum(abs(map(func1, x) - map(func0, x)))
+    num_iter = ceil(Int, log(tol / dist) / log(sigma))
 
     # Iterate the initial function.
     func = func0
