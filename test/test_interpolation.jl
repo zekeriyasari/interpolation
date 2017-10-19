@@ -1,10 +1,8 @@
 workspace()
 
 include("../src/interpolation.jl")
-include("./unit_test.jl")
 
 using Interpolation
-using UnitTest
 using Base.Test
 
 @testset "PolynomialInterpolation Tests" begin
@@ -70,3 +68,14 @@ end # testset
         @test expected ≈ calculated
     end
 end # testset
+
+@testset "FractalInterpolation Test" begin
+    x = collect(linspace(0, 1, 11))
+    y = x.^2
+    d = 0.5 * ones(length(x) - 1)
+    func0(t) = (y[end] - y[1]) / (x[end] - x[1]) * (t - x[end]) + y[end]
+    func = fractal_interpolate(x, y, d, func0, tol=1e-2)
+    for i = 1 : length(x)
+        @test func(x[i]) ≈ y[i]
+    end
+end

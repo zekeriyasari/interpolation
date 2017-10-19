@@ -262,7 +262,7 @@ function fractal_interpolate(x::Vector{<:Real},
     end
 
     # Check translation vector d.
-    if any((0 .> d) | (d .> 1))
+    if !all(0 .< d .< 1)
         error("Elements of d must be between 0 and 1.")
     end
 
@@ -282,15 +282,27 @@ function fractal_interpolate(x::Vector{<:Real},
 
     # Define functional transformation.
     function tf(func)
+        indexes = 1 : length(x)
         function ff(t)
-            if t < x[1] && t > x[end]
-                error("t is out of interpolation domain.")
-            elseif t == x[end]
+            index = t .> x
+            if all(index)
                 return y[end]
+            elseif any(index)
+                k = indexes[index][end]
+                return c[k] * ((t - e[k]) / a[k]) + d[k] * func((t - e[k]) / a[k]) + f[k]
             else
-                return sum([(c[k] * ((t - e[k]) / a[k]) + d[k] * func((t - e[k]) / a[k]) + f[k]) * (unit_step(t - x[k]) - unit_step(t - x[k + 1]))
-                            for k = 1 : n])
+                return y[1]
             end  # if-elseif-else
+
+
+            # if t < x[1] && t > x[end]
+            #     error("t is out of interpolation domain.")
+            # elseif t == x[end]
+            #     return y[end]
+            # else
+            #     return sum([(c[k] * ((t - e[k]) / a[k]) + d[k] * func((t - e[k]) / a[k]) + f[k]) * (unit_step(t - x[k]) - unit_step(t - x[k + 1]))
+            #                 for k = 1 : n])
+            # end  # if-elseif-else
         end  # ff
         return ff
     end  # tf
@@ -298,8 +310,10 @@ function fractal_interpolate(x::Vector{<:Real},
     # Calculate number of iterations
     sigma = maximum(d)
     func1 = tf(func0)
-    dist = maximum(abs(map(func1, x) - map(func0, x)))
-    num_iter = ceil(Int, log(tol / dist) / log(sigma))
+    diff_func(x) = func1(x) - func0(x)
+    # dist = maximum(abs(map(func1, x) - map(func0, x)))
+    dist = fnormp(diff_func, x[1], x[end], 2)
+    num_iter = ceil(Int, log(tol * (1 - sigma) / dist) / log(sigma))
 
     # Iterate the initial function.
     func = func0

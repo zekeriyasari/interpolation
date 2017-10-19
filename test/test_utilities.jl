@@ -1,9 +1,6 @@
 workspace()
 
-include("./unit_test.jl")
 include("../src/utilities.jl")
-
-using UnitTest
 using Base.Test
 
 @testset "UnitStep Test" begin
