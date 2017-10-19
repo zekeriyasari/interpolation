@@ -1,51 +1,10 @@
 """
-    unit_step(t::Real)
-
-Unit step function ``u(t) = 0.5 * sgn(t) + 0.5```
-"""
-function unit_step(t::Real)
-    if t == 0
-        return 1
-    end
-    return 1 / 2 * sign(t) + 1 / 2
-end  # End of unit_step function
-
-
-"""
-    unit_pulse(t::Real; tl::Real=0, th::Real=1)
-
-Unit pulse function with pulse length (th - t1)
-"""
-function unit_pulse(t::Real; tl::Real=0, th::Real=1)
-    if tl >= th
-        throw(ArgumentError("tl must be less than th."))
-    end
-    return unit_step(t - tl) - unit_step(t - th)
-end  # End of unit_pulse function
-
-
-"""
-    shift(vec::Array{<:Real, 1}, k::Union{Bool, Number})
-
-Shift array `vec` for `k` positions to the right and
-append zeros or falses from the left.
-"""
-function shift(vec::BitArray{1}, k::Int)
-    temp = vec[1 : end - k]
-    if typeof(vec[1]) == Bool
-        return [falses(k); temp]
-    else
-        return [zeros(k); temp]
-    end
-end  # End of shift function
-
-
-"""
 Interpolation module for polynomial interpolation real valued data.
 """
 module Interpolation
 
-using Main: unit_pulse, shift, unit_step
+include("./utilities.jl")
+
 
 export polynomial_interpolate, spline_interpolate, fractal_interpolate
 
