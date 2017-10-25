@@ -313,4 +313,79 @@ function fractal_interpolate(x::Vector{<:Real},
     return func
 end  # fractal_interpolate
 
+
+function hidden_variable_fractal_interpolate(x::Vector{<:Real},
+                                             y::Vector{<:Real},
+                                             d::Vector{<:Real},
+                                             h::Vector{<:Real},
+                                             l::Vector{<:Real},
+                                             m::Vector{<:Real},
+                                             hh::Vector{<:Real},
+                                             func0::Function;
+                                             tol::AbstractFloat=1e-3,
+                                             num_iter::Int=10)
+
+    # Check the data length.
+    if length(x) != length(y)
+        throw(ArgumentError("Vector lengths does not match"))
+    end
+
+    # Check translation vector d.
+    # TODO: Check the hidden variables are less than.
+    if !all((0 .< d .< 1) .& (0 .< h .< 1) .& (0 .< l .< 1) .& (0 .< m .< 1))
+        error("Elements of hidden variables must be between 0 and 1.")
+    end
+
+    # If the interpolation points are mixed, sort them.
+    xy = sortrows([x y])
+    x, y = xy[:, 1], xy[:, 2]
+
+    # Compute the transformation coefficients
+    p = y[1 : end - 1] - d * y[1] - h * hh[1]
+    q = h[1 : end - 1] - l * y[1] - m * hh[1]
+    r = y[2 : end] - d * y[end] - h * hh[end]
+    s = h[2 : end] - l * y[end] - m * hh[end]
+
+    a = (x[2 : end] - x[1 : end - 1]) / b
+    e = ((x[end] .* x[1 : end - 1])  - (x[1] - x[2 : end])) / b
+    c = (r - p) / b
+    k = (s - q) / b
+    f = p - c * x[1]
+    g = q - k * x[1]
+
+
+    # Define functional transformation.
+    function tf(func)
+        indexes = 1 : length(x)
+        function ff(t)
+            index = t .> x
+            if all(index)
+                return y[end]
+            elseif any(index)
+                k = indexes[index][end]
+                return c[k] * ((t - e[k]) / a[k]) + d[k] * func((t - e[k]) / a[k]) + f[k]
+            else
+                return y[1]
+            end  # if-elseif-else
+        end  # ff
+        return ff
+    end  # tf
+
+    #  # Calculate number of iterations
+    #  sigma = maximum(d)
+    #  func1 = tf(func0)
+    #  diff_func(x) = func1(x) - func0(x)
+    #  # dist = maximum(abs(map(func1, x) - map(func0, x)))
+    #  dist = fnormp(diff_func, x[1], x[end], 2)
+    #  num_iter = ceil(Int, log(tol * (1 - sigma) / dist) / log(sigma))
+
+    # Iterate the initial function.
+    func = func0
+    for i = 1 : num_iter
+        func = tf(func)
+    end
+    return func
+
+end  # hidden_variable_fractal_interpolate
+
 end  # End of the Interpolation module
