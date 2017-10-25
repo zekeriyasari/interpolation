@@ -15,8 +15,8 @@ export polynomial_interpolate, spline_interpolate, fractal_interpolate
 Polynomial interpolation of `x` and `y` vectors. Degree of the interpolated
 polynomial is `n - 1` where `n` is the length of `x`.
 """
-function _polynomial_interpolate(x::Array{Real, 1},
-                                 y::Array{Real, 1})
+function _polynomial_interpolate(x::Vector{<:Real},
+                                 y::Vector{<:Real})
     n = length(x)
     deg = n - 1
 
@@ -44,8 +44,8 @@ end  # End of _polynomial_interpolate function
 Polynomial interpolation of real valued points `x` and `y`. The degree of  the
 interpolation polynomial may be any integer less than the length `n` of `x`.
 """
-function polynomial_interpolate(x::Array{Real, 1},
-                                y::Array{Real, 1};
+function polynomial_interpolate(x::Vector{<:Real},
+                                y::Vector{<:Real};
                                 deg::Union{Int, Bool}=nothing)
 
     if ~(length(x) == length(y))
@@ -129,7 +129,7 @@ Possible values for `spline_type` is
     * `quadratic` : A quadratic polynomial `p(x) = a + bx + x^2` is interpolated.
     * `qubic` : A qubic polynomial `p(x) = a + bx + cx^2 + dx^3` is interpolated.
 """
-function spline_interpolate(x::Vector{Real}, y::Vector{Real}; spline_type::String="linear")
+function spline_interpolate(x::Vector{<:Real}, y::Vector{<:Real}; spline_type::AbstractString="linear")
     # Check the data length
     if ~(length(x) == length(y))
         throw(ArgumentError("Vector lengths does not match"))
@@ -250,12 +250,12 @@ and has to have elements between 0 and 1. `func0` is the initial function to
 interpolate. `num_iter` is the number of iterations to have calculate the
 fractal interpolation function.
 """
-function fractal_interpolate(x::Vector{Real},
-                             y::Vector{Real},
-                             d::Vector{Real},
+function fractal_interpolate(x::Vector{<:Real},
+                             y::Vector{<:Real},
+                             d::Vector{<:Real},
                              func0::Function;
                              tol::AbstractFloat=1e-3,
-                             num_iter::Integer=10)
+                             num_iter::Int=10)
     # Check the data length.
     if length(x) != length(y)
         throw(ArgumentError("Vector lengths does not match"))
