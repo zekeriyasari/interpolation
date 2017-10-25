@@ -1,5 +1,3 @@
-workspace()
-
 include("../src/utilities.jl")
 using Base.Test
 
