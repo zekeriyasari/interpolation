@@ -6,7 +6,8 @@ module Interpolation
 include("./utilities.jl")
 
 
-export polynomial_interpolate, spline_interpolate, fractal_interpolate
+export polynomial_interpolate, spline_interpolate
+export fractal_interpolate
 
 
 """
@@ -313,46 +314,42 @@ function fractal_interpolate(x::Vector{<:Real},
     return func
 end  # fractal_interpolate
 
-
 function hidden_variable_fractal_interpolate(x::Vector{<:Real},
                                              y::Vector{<:Real},
+                                             H::Vector{<:Real},
                                              d::Vector{<:Real},
                                              h::Vector{<:Real},
                                              l::Vector{<:Real},
                                              m::Vector{<:Real},
-                                             hh::Vector{<:Real},
-                                             func0::Function;
-                                             tol::AbstractFloat=1e-3,
-                                             num_iter::Int=10)
-
+                                             func0::Function,
+                                             num_iter::Integer=5)
     # Check the data length.
     if length(x) != length(y)
         throw(ArgumentError("Vector lengths does not match"))
     end
 
     # Check translation vector d.
-    # TODO: Check the hidden variables are less than.
-    if !all((0 .< d .< 1) .& (0 .< h .< 1) .& (0 .< l .< 1) .& (0 .< m .< 1))
-        error("Elements of hidden variables must be between 0 and 1.")
+    if !all(0 .< d .< 1 .& 0 .< h .< 1 .& 0 .< l .< 1 .& 0 .< m .< 1 .& 0 .< H.< 1)
+        error("Elements of d must be between 0 and 1.")
     end
 
     # If the interpolation points are mixed, sort them.
     xy = sortrows([x y])
     x, y = xy[:, 1], xy[:, 2]
 
-    # Compute the transformation coefficients
-    p = y[1 : end - 1] - d * y[1] - h * hh[1]
-    q = h[1 : end - 1] - l * y[1] - m * hh[1]
-    r = y[2 : end] - d * y[end] - h * hh[end]
-    s = h[2 : end] - l * y[end] - m * hh[end]
+    # Calculate coefficients
+    p = y[1 : end - 1] - d * y[1] - h * H[1]
+    q = H[1 : end - 1] - l * y[1] - m * H[1]
+    r = y[2 : end] - d * y[end] - h * H[end]
+    s = H[2 : end] - l * y[end] - m * H[end]
+    b = x[end] - x[1]
 
-    a = (x[2 : end] - x[1 : end - 1]) / b
-    e = ((x[end] .* x[1 : end - 1])  - (x[1] - x[2 : end])) / b
+    a = (x[2 : end] - x[1 : end-1]) / b
     c = (r - p) / b
-    k = (s - q) / b
+    e = (x[end] * x[1: end-1] - x[1] * x[2 : end]) / b
     f = p - c * x[1]
+    k = (s - q) / b
     g = q - k * x[1]
-
 
     # Define functional transformation.
     function tf(func)
@@ -360,24 +357,19 @@ function hidden_variable_fractal_interpolate(x::Vector{<:Real},
         function ff(t)
             index = t .> x
             if all(index)
-                return y[end]
+                return [y[end]; H[end]]
             elseif any(index)
-                k = indexes[index][end]
-                return c[k] * ((t - e[k]) / a[k]) + d[k] * func((t - e[k]) / a[k]) + f[k]
+                kk = indexes[index][end]
+                MA = [d[kk] h[kk]; l[kk] m[kk]]
+                Mb = [c[kk]; k[kk]]
+                Mc = [f[kk]; g[kk]]
+                return MA * func((t - e[kk]) / a[kk]) + Mb * ((t - e[kk]) / a[kk]) + Mc
             else
-                return y[1]
+                return [y[1]; H[1]]
             end  # if-elseif-else
         end  # ff
         return ff
     end  # tf
-
-    #  # Calculate number of iterations
-    #  sigma = maximum(d)
-    #  func1 = tf(func0)
-    #  diff_func(x) = func1(x) - func0(x)
-    #  # dist = maximum(abs(map(func1, x) - map(func0, x)))
-    #  dist = fnormp(diff_func, x[1], x[end], 2)
-    #  num_iter = ceil(Int, log(tol * (1 - sigma) / dist) / log(sigma))
 
     # Iterate the initial function.
     func = func0
@@ -385,7 +377,69 @@ function hidden_variable_fractal_interpolate(x::Vector{<:Real},
         func = tf(func)
     end
     return func
-
 end  # hidden_variable_fractal_interpolate
 
-end  # End of the Interpolation module
+
+"""
+fractal_interpolate2d(x::Vector{<:Real},
+                               y::Vector{<:Real},
+                               z::Matrix{<:Real},
+                               s::Matrix{<:Real},
+                               func0::Function,
+                               num_iter::Int)
+
+Two-dimensional fractal interpolation.
+"""
+function fractal_interpolate2d(x::Vector{<:Real},
+                               y::Vector{<:Real},
+                               z::Matrix{<:Real},
+                               s::Matrix{<:Real},
+                               func0::Function,
+                               num_iter::Int)
+    # Calculate the coefficients
+    a = (x[2:end] - x[1:end-1]) / (x[end] - x[1])
+    b = (x[1:end-1] * x[end] - x[2:end] * x[1]) / (x[end] - x[1])
+    c = (y[2:end] - y[1:end-1]) / (y[end] - y[1])
+    d = (y[1:end-1] * y[end] - y[2:end] * y[1]) / (y[end] - y[1])
+    g = (z[2:end, 2:end] + z[1:end-1, 1:end-1] - z[1:end-1, 2:end] - z[2:end, 1:end-1]
+            - s[2:end, 2:end] * (z[end,end] + z[1,1] - z[1,end] - z[end,1])) /
+            ((y[end] -y[1]) * (x[end] - x[1]))
+    e = (z[1:end-1, 1:end-1] - z[2:end, 1:end-1] - s[2:end, 2:end] * (z[1,1] - z[end,1])
+             - g[1:end, 1:end] * y[1] * (x[1] - x[end])) / (x[1] - x[end])
+    f = (z[1:end-1, 1:end-1] - z[1:end-1, 2:end] - s[2:end, 2:end] * (z[1,1] - z[1,end])
+          - g[1:end, 1:end] * x[1] * (y[1] - y[end])) / (y[1] - y[end])
+    k = z[2:end, 2:end] - e[1:end, 1:end] * x[end] - f[1:end, 1:end] * y[end]
+         - s[2:end, 2:end] * z[end, end] - g[1:end, 1:end] * x[end] * y[end]
+
+    # Define functional transformation.
+    function tf(func)
+        x_indexes = 1 : length(x)
+        y_indexes = 1 : length(y)
+        function ff(xd, yd)
+            x_index = xd .> x
+            y_index = yd .> y
+            if all(x_index) || all(y_index)
+                return z[end, end]
+            elseif any(x_index) && any(y_index)
+                n = x_indexes[x_index][end]
+                m = y_indexes[y_index][end]
+                return e[n, m] * (xd - b[n]) / a[n] + f[n, m] * (yd - d[m]) / c[m]
+                        + g[n, m] * (xd - b[n]) / a[n] * (yd - d[m]) / c[m]
+                        + s[n, m] * func((xd - b[n]) / a[n], (yd - d[m]) / c[m])
+                        + k[n,m]
+            else
+                return z[1, 1]
+            end  # if-elseif-else
+        end  # ff
+        return ff
+    end  # tf
+
+    # Iterate the initial function.
+    func = func0
+    for i = 1 : num_iter
+        func = tf(func)
+    end
+    return func
+end  # fractal_interpolate2d
+
+end  # Interpolation module
